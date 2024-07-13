@@ -1,13 +1,10 @@
 import os
-
 from dotenv import load_dotenv
-
-from flask import (
-    Flask, jsonify, send_from_directory, url_for
-)
+from flask import Flask, jsonify, send_from_directory, url_for
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_jwt_extended import JWTManager
 
 from backend.admin import setup_admin
 from backend.commands import setup_commands
@@ -24,24 +21,24 @@ app = Flask(__name__,
             static_folder='./public'
             )
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
-    "DATABASE_URI", 'sqlite:///app.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URI", 'sqlite:///app.db')
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", 'your_secret_key')
+app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", 'your_jwt_secret_key')
 
 db.init_app(app)
 migrate = Migrate(app, db)
 cors = CORS(app)
+jwt = JWTManager(app)
 
 setup_admin(app)
 setup_commands(app)
 
 app.register_blueprint(api)
 
-
 def has_no_empty_params(rule):
     defaults = rule.defaults if rule.defaults is not None else ()
     arguments = rule.arguments if rule.arguments is not None else ()
     return len(defaults) >= len(arguments)
-
 
 def generate_sitemap(app):
     links = ['/admin/']
@@ -53,8 +50,7 @@ def generate_sitemap(app):
             if "/admin/" not in url:
                 links.append(url)
 
-    links_html = "".join(["<li><a href='" + y + "'>" +
-                         y + "</a></li>" for y in links])
+    links_html = "".join(["<li><a href='" + y + "'>" + y + "</a></li>" for y in links])
     return """
         <div style="text-align: center;">
         <img style="max-height: 80px" src='https://storage.googleapis.com/breathecode/boilerplates/rigo-baby.jpeg' />
@@ -62,8 +58,7 @@ def generate_sitemap(app):
         <p>API HOST: <script>document.write('<input style="padding: 5px; width: 300px" type="text" value="'+window.location.href+'" />');</script></p>
         <p>Start working on your project by following the <a href="https://start.4geeksacademy.com/starters/full-stack" target="_blank">Quick Start</a></p>
         <p>Remember to specify a real endpoint path like: </p>
-        <ul style="text-align: left;">"""+links_html+"</ul></div>"
-
+        <ul style="text-align: left;">""" + links_html + "</ul></div>"
 
 @app.route('/', defaults={"filepath": ""})
 @app.route('/<path:filepath>')
@@ -73,3 +68,6 @@ def sitemap(filepath):
     if not os.path.isfile(os.path.join("./public", filepath)):
         return send_from_directory("./public", os.path.join(filepath, "index.html"))
     return send_from_directory("./public", filepath)
+
+if __name__ == "__main__":
+    app.run(debug=True)
